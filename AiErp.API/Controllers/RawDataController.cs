@@ -2,54 +2,102 @@ using Microsoft.AspNetCore.Mvc;
 using AiErp.API.Services;
 using System.Threading.Tasks;
 using System.Collections.Generic;
-using System.Linq; // AllowedTables kontrolü için gerekli
+using System.Linq;
 using System;
 
 namespace AiErp.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")] // Route: api/RawData
+    [Route("api/[controller]")]
     public class RawDataController : ControllerBase
     {
         private readonly SqlExecutorService _sqlExecutorService;
+
+        // Kullanıcı dostu adları gerçek tablo adlarına çeviren map
+        private static readonly Dictionary<string, string> TableMap =
+            new(StringComparer.OrdinalIgnoreCase)
+        {
+            { "products", "Products" },
+            { "vendors", "Vendors" },
+            { "orders", "Orders" },
+            { "details", "PurchaseOrderDetails" },
+            { "receipts", "GoodsReceipts" }
+        };
+
+        // JOIN gerektiren tablolar için özel SQL sorguları
+        private static readonly Dictionary<string, string> ComplexQueries =
+            new(StringComparer.OrdinalIgnoreCase)
+        {
+            // SATIN ALMA DETAYLARI – Ürün adı + müşteri adı
+            {
+                "details",
+                @"SELECT 
+                    d.OrderDetailId,
+                    d.OrderId,
+                    o.CustomerName,
+                    p.Name AS ProductName,
+                    d.Quantity,
+                    d.UnitPrice
+                FROM PurchaseOrderDetails d
+                JOIN Products p ON d.ProductId = p.Id
+                JOIN Orders o ON d.OrderId = o.Id"
+            },
+
+            // FİŞLER – Müşteri adı + sipariş toplamı
+            {
+                "receipts",
+                @"SELECT 
+                    r.ReceiptId,
+                    r.OrderId,
+                    o.CustomerName,
+                    r.ReceiptDate,
+                    r.ReceivedQuantity,
+                    o.TotalAmount AS OrderTotal
+                FROM GoodsReceipts r
+                JOIN Orders o ON r.OrderId = o.Id"
+            },
+
+            // Basit tablolar
+            { "products", "SELECT * FROM Products" },
+            { "vendors", "SELECT * FROM Vendors" },
+            { "orders", "SELECT * FROM Orders" }
+        };
 
         public RawDataController(SqlExecutorService sqlExecutorService)
         {
             _sqlExecutorService = sqlExecutorService;
         }
 
-        // Güvenlik için izin verilen tablo adları listesi
-        private static readonly string[] AllowedTables = 
-            new[] { "Products", "Vendors", "Orders", "PurchaseOrderDetails", "GoodsReceipts" };
-
-        // Frontend'ten gelen tablo adına göre veriyi çeker (GET api/RawData/Products)
+        // GET: api/RawData/{tableName}
         [HttpGet("{tableName}")]
         public async Task<IActionResult> GetTableData(string tableName)
         {
-            // SQL Injection (Zararlı Yazılım) KORUMASI:
-            // Sadece izin verilen tablo adlarını kabul et
-            if (!AllowedTables.Any(t => t.Equals(tableName, StringComparison.OrdinalIgnoreCase)))
+            // 1. Kullanıcının yazdığı isim map'te var mı?
+            if (!TableMap.TryGetValue(tableName, out string? actualTableName))
             {
-                return BadRequest($"Hata: '{tableName}' adında bir tabloya erişim izni yok.");
+                return BadRequest($"Hata: '{tableName}' için veri erişimi tanımlı değil.");
             }
 
-            // Dapper ile ham SQL sorgusunu oluştur ve çalıştır
-            string sqlQuery = $"SELECT * FROM {tableName}";
-            
+            string key = tableName.ToLowerInvariant();
+
+            // 2. Özel bir JOIN sorgusu var mı?
+            string sqlQuery = ComplexQueries.ContainsKey(key)
+                ? ComplexQueries[key]
+                : $"SELECT * FROM {actualTableName}";
+
             try
             {
                 IEnumerable<dynamic> result = await _sqlExecutorService.ExecuteQueryAsync(sqlQuery);
-                
+
                 if (result == null || !result.Any())
                 {
-                    return NotFound($"Tablo '{tableName}' boş veya bulunamadı.");
+                    return NotFound($"Tablo '{tableName}' boş.");
                 }
 
                 return Ok(result);
             }
             catch (Exception ex)
             {
-                // Veritabanı hatasını yakala (Örn: Bağlantı hatası)
                 return StatusCode(500, $"Veritabanı hatası: {ex.Message}");
             }
         }
