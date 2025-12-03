@@ -1,0 +1,26 @@
+# ------------------------
+# .NET build artifacts
+# ------------------------
+bin/
+obj/
+*.cache
+*.pdb
+*.dll
+*.exe
+
+# ------------------------
+# Secrets
+# ------------------------
+appsettings.Development.json
+appsettings.Local.json
+
+# ------------------------
+# Logs
+# ------------------------
+*.log
+
+# ------------------------
+# Angular
+# ------------------------
+node_modules/
+dist/
