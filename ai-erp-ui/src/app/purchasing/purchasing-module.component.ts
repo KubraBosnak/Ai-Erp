@@ -46,19 +46,25 @@ export class PurchasingModuleComponent {
   constructor() {
     // Dropdown dışına tıklandığında kapat
     effect(() => {
-      if (this.isDataMenuOpen()) {
-        const handler = (event: MouseEvent) => {
-          const target = event.target as HTMLElement;
-          if (!target.closest('.tab-btn-dropdown')) {
-            this.closeDataMenu();
-          }
-        };
-        this.document.addEventListener('click', handler);
-        return () => {
-          this.document.removeEventListener('click', handler);
-        };
+  if (this.isDataMenuOpen()) {
+    const handler = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.tab-btn-dropdown')) {
+        this.closeDataMenu();
       }
-    });
+    };
+
+    this.document.addEventListener('click', handler);
+
+    // Cleanup fonksiyonu
+    return () => {
+      this.document.removeEventListener('click', handler);
+    };
+  }
+
+  // Menü kapalıysa yine return etmek zorundayız
+  return;
+});
 
     // Router değişikliklerini dinle
     this.router.events
