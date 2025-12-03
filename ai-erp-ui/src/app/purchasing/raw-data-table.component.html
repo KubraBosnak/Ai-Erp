@@ -1,0 +1,44 @@
+<div class="raw-data-container">
+  @if (tableName()) {
+    <div class="table-header">
+      <h2 class="table-title">{{ getTableTitle() }}</h2>
+    </div>
+  }
+  
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Veriler yükleniyor...</p>
+    </div>
+  } @else if (errorMessage()) {
+    <div class="error-state">
+      <p>{{ errorMessage() }}</p>
+    </div>
+  } @else if (tableData().length === 0) {
+    <div class="empty-state">
+      <p>Gösterilecek veri bulunamadı.</p>
+    </div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            @for (column of tableColumns(); track column) {
+              <th>{{ formatKey(column) }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of tableData(); track $index) {
+            <tr>
+              @for (column of tableColumns(); track column) {
+                <td>{{ formatValue(row[column]) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+

@@ -1,0 +1,25 @@
+<section class="modules-section" id="moduller">
+  <div class="section-heading">
+    <p class="eyebrow">Modül Kütüphanesi</p>
+    <h2>Operasyonlarınızı hızlandıran 6 temel modül</h2>
+    <p>Her modül bağımsız çalışabilir veya uçtan uca süreçler için entegre edilebilir.</p>
+  </div>
+
+  <div class="modules-grid">
+    @for (module of moduleCards; track module.title) {
+      <article
+        class="module-card"
+        [class.clickable]="module.title === 'Satın Alma Modülü'"
+        (click)="handleModuleClick(module)"
+      >
+        <div class="module-card-header">
+          <span class="module-badge">{{ module.badge }}</span>
+          <h3>{{ module.title }}</h3>
+        </div>
+        <p>{{ module.description }}</p>
+        <button class="text-link" type="button">Detayları incele →</button>
+      </article>
+    }
+  </div>
+</section>
+

@@ -1,0 +1,6 @@
+@AiErp.API_HostAddress = http://localhost:5093
+
+GET {{AiErp.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

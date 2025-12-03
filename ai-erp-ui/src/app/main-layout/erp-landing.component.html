@@ -1,0 +1,86 @@
+<div class="erp-landing">
+  <header class="main-header">
+    <div class="brand">
+      <a routerLink="/home" class="brand-link">
+        <span class="brand-accent">AI</span> ERP Suite
+      </a>
+    </div>
+    <div class="header-actions">
+      <nav class="navigation">
+        @for (item of navItems; track item.id) {
+          <a
+            class="nav-link"
+            [class.active]="item.route && router.url.startsWith(item.route)"
+            [routerLink]="item.route || '#'"
+            (click)="!item.route && navigateToSection(item)"
+          >
+            {{ item.label }}
+          </a>
+        }
+      </nav>
+      @if (!authService.isLoggedIn()) {
+        <a class="login-link" routerLink="/login">GİRİŞ YAP</a>
+      } @else {
+        <div class="profile-menu-wrapper">
+          <button
+            class="profile-menu-trigger"
+            type="button"
+            (click)="toggleProfileMenu()"
+          >
+            <span>HESAP PROFİLİ</span>
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M2 4L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          @if (isProfileMenuOpen()) {
+            <div class="profile-menu-dropdown">
+              <div class="profile-menu-header">
+                <strong>{{ authService.currentUser() }}</strong>
+                <span class="profile-menu-email">Kullanıcı</span>
+              </div>
+              <div class="profile-menu-divider"></div>
+              <button
+                class="profile-menu-item"
+                type="button"
+                (click)="handleLogout()"
+              >
+                Çıkış Yap
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </header>
+
+  <main class="layout-content">
+    <router-outlet></router-outlet>
+  </main>
+
+  @if (authService.isLoggedIn()) {
+    @if (!isChatOpen()) {
+      <button class="chat-toggle" type="button" (click)="toggleChat(true)">
+        Asistan
+      </button>
+    }
+
+    <section class="chat-widget" [class.open]="isChatOpen()">
+      <div class="chat-widget-header">
+        <div>
+          <p class="eyebrow">Canlı Asistan</p>
+          <strong>Operasyon Uzmanı</strong>
+        </div>
+        <button class="ghost-btn small" type="button" (click)="toggleChat(false)">
+          Kapat
+        </button>
+      </div>
+      <div class="chat-widget-body">
+        <app-chat-interface
+          class="embedded-chat"
+          style="--chat-container-height: 540px; --chat-container-min-height: 540px; --chat-host-height: 540px;"
+        ></app-chat-interface>
+      </div>
+    </section>
+  }
+</div>
+

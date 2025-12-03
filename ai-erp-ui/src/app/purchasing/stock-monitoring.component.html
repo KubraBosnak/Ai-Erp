@@ -1,0 +1,91 @@
+<div class="monitoring-shell">
+  <div class="query-panel">
+    <div class="query-meta">
+      <div>
+        <p class="eyebrow">AI destekli sorgu</p>
+        <h2>Doğal dil ile stok görünürlüğü</h2>
+        <p class="subtitle">
+          Örneğin: <em>"Stok miktarı 10'un altında olan malzemeleri göster"</em>
+        </p>
+      </div>
+      @if (lastQuery(); as recent) {
+        <div class="last-query">
+          <span>Son sorgu</span>
+          <strong>{{ recent }}</strong>
+        </div>
+      }
+    </div>
+    <div class="query-input">
+      <textarea
+        [ngModel]="query()"
+        (ngModelChange)="query.set($event)"
+        placeholder="Sorunuzu yazın..."
+        rows="3"
+      ></textarea>
+      <button type="button" (click)="triggerQuery()">Sorgula</button>
+    </div>
+  </div>
+
+  <div class="table-card">
+    <header class="table-header">
+      <div>
+        <h3>Malzeme Listesi</h3>
+        <p>Stok verilerini filtreleyin ve sıralayın.</p>
+      </div>
+      <input
+        type="search"
+        [ngModel]="query()"
+        (ngModelChange)="query.set($event)"
+        placeholder="Malzeme veya depo ara..."
+        class="search-input"
+      />
+    </header>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th (click)="sortBy('code')">
+              Malzeme Kodu
+              <span [class.active]="sortField() === 'code'">{{ sortDirection() }}</span>
+            </th>
+            <th (click)="sortBy('name')">
+              Malzeme Adı
+              <span [class.active]="sortField() === 'name'">{{ sortDirection() }}</span>
+            </th>
+            <th (click)="sortBy('warehouse')">
+              Depo
+              <span [class.active]="sortField() === 'warehouse'">{{ sortDirection() }}</span>
+            </th>
+            <th (click)="sortBy('quantity')">
+              Stok Miktarı
+              <span [class.active]="sortField() === 'quantity'">{{ sortDirection() }}</span>
+            </th>
+            <th (click)="sortBy('critical')">
+              Kritik Seviye
+              <span [class.active]="sortField() === 'critical'">{{ sortDirection() }}</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of filteredRows(); track row.code) {
+            <tr [class.critical]="row.quantity <= row.critical">
+              <td>{{ row.code }}</td>
+              <td>{{ row.name }}</td>
+              <td>{{ row.warehouse }}</td>
+              <td>{{ row.quantity }}</td>
+              <td>{{ row.critical }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-state">
+                Hiç sonuç bulunamadı.
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+

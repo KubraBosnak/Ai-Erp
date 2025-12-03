@@ -1,0 +1,127 @@
+<div class="chat-container">
+  <!-- Sol Sidebar - Geçmiş Sohbetler -->
+  <div class="sidebar" [class.open]="isSidebarOpen()">
+    <div class="sidebar-header">
+      <h2>Sohbetler</h2>
+    </div>
+    <div class="chat-list">
+      @for (chat of chats(); track chat.id) {
+        <div 
+          class="chat-item" 
+          [class.active]="currentChatId() === chat.id"
+          (click)="selectChat(chat.id)">
+          <div class="chat-item-content">
+            <div class="chat-item-title">
+              <span class="chat-name">{{ chat.title }}</span>
+              @if (chat.unreadCount > 0) {
+                <span class="unread-badge">{{ chat.unreadCount }}</span>
+              }
+            </div>
+            <div class="chat-item-message">
+              <span class="last-message">{{ chat.lastMessage }}</span>
+              <span class="last-message-time">{{ formatTime(chat.lastMessageTime) }}</span>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Sağ Taraf - Chat Alanı -->
+  <div class="chat-area">
+    <!-- Sidebar Toggle Butonu -->
+    <button 
+      class="sidebar-toggle" 
+      type="button"
+      (click)="toggleSidebar()"
+      [class.open]="isSidebarOpen()">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    @if (currentChat; as chat) {
+      <!-- Chat Header -->
+      <div class="chat-header">
+        <div class="chat-header-content">
+          <h3>{{ chat.title }}</h3>
+        </div>
+      </div>
+
+      <!-- Mesajlar -->
+      <div class="messages-container">
+        @for (message of chat.messages; track message.id) {
+          <div class="message-wrapper" [class.user-message]="message.sender === 'user'" [class.bot-message]="message.sender === 'bot'">
+            <div class="message-bubble">
+              @if (message.isJson && message.jsonData) {
+                <div class="json-table-container">
+                  <table class="json-table">
+                    <thead>
+                      <tr>
+                        @for (key of getJsonKeys(message.jsonData); track key) {
+                          <th>{{ formatKey(key) }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @if (isArray(message.jsonData)) {
+                        @for (row of message.jsonData; track $index) {
+                          <tr>
+                            @for (key of getJsonKeys(row); track key) {
+                              <td>{{ formatValue(row[key]) }}</td>
+                            }
+                          </tr>
+                        }
+                      } @else {
+                        <tr>
+                          @for (key of getJsonKeys(message.jsonData); track key) {
+                            <td>{{ formatValue(message.jsonData[key]) }}</td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="message-content">{{ message.content }}</div>
+              }
+              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <!-- Mesaj Input -->
+      <div class="message-input-container">
+        <div class="input-wrapper">
+          <input
+            type="text"
+            [(ngModel)]="newMessage"
+            (keyup.enter)="sendMessage()"
+            placeholder="Mesaj yazın..."
+            class="message-input"
+          />
+          <button 
+            (click)="sendMessage()" 
+            class="send-button"
+            [disabled]="!newMessage().trim()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    } @else {
+      <!-- Boş Durum -->
+      <div class="empty-state">
+        <div class="empty-state-content">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="currentColor" opacity="0.3"/>
+          </svg>
+          <h3>Sohbet Seçin</h3>
+          <p>Bir sohbet seçerek mesajlaşmaya başlayın</p>
+        </div>
+      </div>
+    }
+  </div>
+</div>
+

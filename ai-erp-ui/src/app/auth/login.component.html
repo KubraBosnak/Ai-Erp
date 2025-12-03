@@ -1,0 +1,46 @@
+<section class="login-wrapper">
+  <div class="login-card">
+    <div class="login-header">
+      <p class="eyebrow">AI ERP Suite</p>
+      <h1>Giriş Yap</h1>
+      <p class="subtitle">Kurumsal modüllere erişmek için kimlik bilgilerinizi girin.</p>
+    </div>
+
+    <form [formGroup]="loginForm" (ngSubmit)="submit()" class="login-form">
+      <label class="form-field">
+        <span>Kullanıcı Adı</span>
+        <input
+          type="text"
+          formControlName="username"
+          placeholder="kubrab"
+          [class.invalid]="loginForm.controls.username.invalid && loginForm.controls.username.touched"
+        />
+      </label>
+
+      <label class="form-field">
+        <span>Şifre</span>
+        <input
+          type="password"
+          formControlName="password"
+          placeholder="•••••"
+          [class.invalid]="loginForm.controls.password.invalid && loginForm.controls.password.touched"
+        />
+      </label>
+
+      @if (errorMessage()) {
+        <div class="form-error">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      <button class="primary-btn" type="submit" [disabled]="isSubmitting()">
+        @if (isSubmitting()) {
+          Giriş yapılıyor...
+        } @else {
+          Giriş Yap
+        }
+      </button>
+    </form>
+  </div>
+</section>
+

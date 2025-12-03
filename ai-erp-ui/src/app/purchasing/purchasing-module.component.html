@@ -1,0 +1,66 @@
+<section class="purchasing-wrapper">
+  <header class="purchasing-header">
+    <div>
+      <p class="eyebrow">Satın Alma Modülü</p>
+      <h1>Uçtan uca tedarik zinciri görünürlüğü</h1>
+      <p>Talep oluşumundan teslimata tüm döngüyü canlı izleyin ve yönetin.</p>
+    </div>
+    <div class="badge">Versiyon 3.4</div>
+  </header>
+
+  <nav class="tab-nav">
+    <!-- Satın Alma İşlemleri - Dropdown Menü -->
+    <div class="tab-btn-dropdown" [class.open]="isDataMenuOpen()">
+      <a
+        class="tab-btn"
+        [class.active]="isTransactionsActive()"
+        routerLink="./transactions"
+      >
+        <span>Satın Alma İşlemleri</span>
+        <small>Talep ve sipariş yönetimi</small>
+      </a>
+      <button
+        class="dropdown-toggle"
+        type="button"
+        (click)="toggleDataMenu($event)"
+        [attr.aria-expanded]="isDataMenuOpen()"
+      >
+        <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      @if (isDataMenuOpen()) {
+        <div class="dropdown-menu">
+          @for (item of dataMenuItems; track item.path) {
+            <a
+              class="dropdown-item"
+              routerLink="./{{ item.path }}"
+              routerLinkActive="active"
+              (click)="closeDataMenu(); $event.stopPropagation()"
+            >
+              {{ item.label }}
+            </a>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- Diğer Tab'lar -->
+    @for (tab of tabs; track tab.path) {
+      <a
+        class="tab-btn"
+        routerLink="./{{ tab.path }}"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+      >
+        <span>{{ tab.label }}</span>
+        <small>{{ tab.description }}</small>
+      </a>
+    }
+  </nav>
+
+  <section class="tab-content">
+    <router-outlet></router-outlet>
+  </section>
+</section>
+
