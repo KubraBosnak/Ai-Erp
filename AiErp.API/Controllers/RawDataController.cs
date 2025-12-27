@@ -13,7 +13,6 @@ namespace AiErp.API.Controllers
     {
         private readonly SqlExecutorService _sqlExecutorService;
 
-        // Kullanıcı dostu adları gerçek tablo adlarına çeviren map
         private static readonly Dictionary<string, string> TableMap =
             new(StringComparer.OrdinalIgnoreCase)
         {
@@ -24,43 +23,75 @@ namespace AiErp.API.Controllers
             { "receipts", "GoodsReceipts" }
         };
 
-        // JOIN gerektiren tablolar için özel SQL sorguları
+        // GÜNCELLEME: Tüm sorgulara 'AS [Türkçe İsim]' ekledik.
         private static readonly Dictionary<string, string> ComplexQueries =
             new(StringComparer.OrdinalIgnoreCase)
         {
-            // SATIN ALMA DETAYLARI – Ürün adı + müşteri adı
+            // 1. SATIN ALMA DETAYLARI
             {
                 "details",
                 @"SELECT 
-                    d.OrderDetailId,
-                    d.OrderId,
-                    o.CustomerName,
-                    p.Name AS ProductName,
-                    d.Quantity,
-                    d.UnitPrice
+                    d.OrderDetailId AS [Detay No],
+                    d.OrderId AS [Sipariş No],
+                    o.CustomerName AS [Müşteri Adı],
+                    p.Name AS [Ürün Adı],
+                    d.Quantity AS [Adet],
+                    d.UnitPrice AS [Birim Fiyat],
+                    (d.Quantity * d.UnitPrice) AS [Satır Toplamı]
                 FROM PurchaseOrderDetails d
                 JOIN Products p ON d.ProductId = p.Id
                 JOIN Orders o ON d.OrderId = o.Id"
             },
 
-            // FİŞLER – Müşteri adı + sipariş toplamı
+            // 2. MAL KABUL FİŞLERİ
             {
                 "receipts",
                 @"SELECT 
-                    r.ReceiptId,
-                    r.OrderId,
-                    o.CustomerName,
-                    r.ReceiptDate,
-                    r.ReceivedQuantity,
-                    o.TotalAmount AS OrderTotal
+                    r.ReceiptId AS [Fiş No],
+                    r.OrderId AS [Sipariş No],
+                    o.CustomerName AS [Müşteri],
+                    r.ReceiptDate AS [İşlem Tarihi],
+                    r.ReceivedQuantity AS [Teslim Alınan Miktar],
+                    o.TotalAmount AS [Sipariş Toplamı]
                 FROM GoodsReceipts r
                 JOIN Orders o ON r.OrderId = o.Id"
             },
 
-            // Basit tablolar
-            { "products", "SELECT * FROM Products" },
-            { "vendors", "SELECT * FROM Vendors" },
-            { "orders", "SELECT * FROM Orders" }
+            // 3. ÜRÜNLER (En önemlisi bu)
+            {
+                "products",
+                @"SELECT 
+                    p.Id AS [Ürün No],
+                    p.Name AS [Ürün Adı],
+                    p.StockAmount AS [Stok Miktarı],
+                    p.Price AS [Birim Fiyat],
+                    v.VendorName AS [Tedarikçi Firma]
+                FROM Products p
+                JOIN Vendors v ON p.VendorId = v.Id"
+            },
+
+            // 4. TEDARİKÇİLER (SELECT * yerine özel seçim yaptık)
+            { 
+                "vendors", 
+                @"SELECT 
+                    Id AS [Firma No], 
+                    VendorName AS [Firma Adı], 
+                    ContactName AS [İlgili Kişi], 
+                    City AS [Şehir], 
+                    TaxId AS [Vergi No] 
+                  FROM Vendors" 
+            },
+
+            // 5. SİPARİŞLER
+            { 
+                "orders", 
+                @"SELECT 
+                    Id AS [Sipariş No], 
+                    CustomerName AS [Müşteri], 
+                    OrderDate AS [Sipariş Tarihi], 
+                    TotalAmount AS [Toplam Tutar] 
+                  FROM Orders" 
+            }
         };
 
         public RawDataController(SqlExecutorService sqlExecutorService)
@@ -68,19 +99,16 @@ namespace AiErp.API.Controllers
             _sqlExecutorService = sqlExecutorService;
         }
 
-        // GET: api/RawData/{tableName}
         [HttpGet("{tableName}")]
         public async Task<IActionResult> GetTableData(string tableName)
         {
-            // 1. Kullanıcının yazdığı isim map'te var mı?
             if (!TableMap.TryGetValue(tableName, out string? actualTableName))
             {
-                return BadRequest($"Hata: '{tableName}' için veri erişimi tanımlı değil.");
+                return BadRequest($"Hata: '{tableName}' tablosu bulunamadı.");
             }
 
             string key = tableName.ToLowerInvariant();
 
-            // 2. Özel bir JOIN sorgusu var mı?
             string sqlQuery = ComplexQueries.ContainsKey(key)
                 ? ComplexQueries[key]
                 : $"SELECT * FROM {actualTableName}";
@@ -89,9 +117,9 @@ namespace AiErp.API.Controllers
             {
                 IEnumerable<dynamic> result = await _sqlExecutorService.ExecuteQueryAsync(sqlQuery);
 
-                if (result == null || !result.Any())
+                if (result == null)
                 {
-                    return NotFound($"Tablo '{tableName}' boş.");
+                    return Ok(new List<dynamic>());
                 }
 
                 return Ok(result);

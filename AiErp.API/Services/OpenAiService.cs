@@ -15,117 +15,105 @@ namespace AiErp.API.Services
         public OpenAiService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            // API Key'i appsettings.json'dan okuyoruz.
             _apiKey = configuration["OpenAI:ApiKey"] ?? throw new InvalidOperationException("OpenAI API Key bulunamadı veya boş.");
         }
 
         public async Task<string> GenerateSqlFromText(string userPrompt)
         {
-            // Veritabanı Şeması (AI'a çoklu tablo bağlantılarını öğretiyoruz)
+            // GÜNCELLEME 1: Şemayı senin son veritabanı yapına göre (Id kullanan yapı) düzelttim.
             var schema = @"
-                CREATE TABLE Products (ProductId INT PRIMARY KEY, Name VARCHAR(100), StockAmount INT, Price DECIMAL(10, 2));
-                CREATE TABLE Vendors (VendorId INT PRIMARY KEY, VendorName VARCHAR(150), City VARCHAR(50));
-                
-                -- FK: VendorId'yi Orders'a ekledik
-                CREATE TABLE Orders (
-                    OrderId INT PRIMARY KEY, 
-                    VendorId INT, 
-                    OrderDate DATETIME, 
-                    TotalAmount DECIMAL(10, 2),
-                    FOREIGN KEY (VendorId) REFERENCES Vendors(VendorId)
-                );
+                -- TABLOLAR VE KOLONLAR
+                Products (Id, Name, StockAmount, Price, VendorId)
+                Vendors (Id, VendorName, ContactName, City, TaxId)
+                Orders (Id, OrderDate, TotalAmount, CustomerName)
+                PurchaseOrderDetails (OrderDetailId, OrderId, ProductId, Quantity, UnitPrice)
+                GoodsReceipts (ReceiptId, OrderId, ReceiptDate, ReceivedQuantity)
 
-                -- FK: Ürün ve Sipariş Kalemlerini bağlıyoruz
-                CREATE TABLE PurchaseOrderDetails (
-                    OrderDetailId INT PRIMARY KEY, 
-                    OrderId INT, 
-                    ProductId INT, 
-                    Quantity INT, 
-                    UnitPrice DECIMAL,
-                    FOREIGN KEY (OrderId) REFERENCES Orders(OrderId),
-                    FOREIGN KEY (ProductId) REFERENCES Products(ProductId)
-                );
-
-                -- FK: Mal kabul kayıtlarını siparişe bağlıyoruz
-                CREATE TABLE GoodsReceipts (
-                    ReceiptId INT PRIMARY KEY, 
-                    OrderId INT, 
-                    ReceiptDate DATETIME, 
-                    ReceivedQuantity INT,
-                    FOREIGN KEY (OrderId) REFERENCES Orders(OrderId)
-                );
+                -- İLİŞKİLER (JOIN Mantığı)
+                Products.VendorId -> Vendors.Id (Ürünün tedarikçisi)
+                PurchaseOrderDetails.OrderId -> Orders.Id
+                PurchaseOrderDetails.ProductId -> Products.Id
+                GoodsReceipts.OrderId -> Orders.Id
             ";
 
-            var systemMessage = @$"
-                Sen bir T-SQL uzmanısın. Kullanıcı ne sorarsa sadece ham SQL döndür. Açıklama, yorum, kod bloğu ekleme.
+            // GÜNCELLEME 2: Hocanın istediği zeka kurallarını ve örnekleri ekledim.
+            var systemMessage = $@"
+                Sen uzman bir MSSQL (T-SQL) veritabanı asistanısın.
+                Görevin: Kullanıcının doğal dil sorularını aşağıdaki şemaya uygun T-SQL sorgularına çevirmek.
 
-Aşağıdaki tablo şemasını kullan:
+                VERİTABANI ŞEMASI:
+                {schema}
 
-Products(ProductId, Name, StockAmount, Price)
-Vendors(VendorId, VendorName, City)
-Orders(OrderId, VendorId, OrderDate, TotalAmount)
-PurchaseOrderDetails(OrderDetailId, OrderId, ProductId, Quantity, UnitPrice)
-GoodsReceipts(ReceiptId, OrderId, ReceiptDate, ReceivedQuantity)
+                KURALLAR:
+                1. SADECE SQL kodu döndür. Açıklama, ```sql etiketi veya yorum satırı ASLA ekleme.
+                2. KOLON İSİMLERİNE DİKKAT ET:
+                   - Products ve Vendors tablolarının birincil anahtarı 'Id' dir. 'ProductId' veya 'VendorId' diye uydurma.
+                   - Bağlantı kurarken: Products.VendorId = Vendors.Id
+                3. ANLAM AYRIMI (Çok Önemli):
+                   - 'Kaç çeşit', 'kaç farklı', 'kaç satır' denirse -> COUNT(*) kullan.
+                   - 'Toplam stok', 'kaç adet ürün' (miktar olarak) denirse -> SUM(StockAmount) kullan.
+                4. CRUD İŞLEMLERİ:
+                   - Kullanıcı veri eklemek, silmek veya güncellemek isterse (INSERT, UPDATE, DELETE) buna izin ver ve uygun SQL'i üret.
+                5. TARİH:
+                   - Tarih filtrelerinde DATEADD(DAY, -X, GETDATE()) kullan.
 
-Zorunlu JOIN Kuralları:
-- Orders.OrderId = PurchaseOrderDetails.OrderId
-- Products.ProductId = PurchaseOrderDetails.ProductId
-- Vendors.VendorId = Orders.VendorId
-
-Kurallar:
-1. Kullanıcı “kaç tane”, “stok”, “stock amount”, “stok durumu” derse:
-   → Products.StockAmount döndür. COUNT(*) kullanma.
-
-2. Birden fazla tabloyu ilgilendiren her soruda JOIN kullanmak zorunludur.
-
-3. Tarihli sorularda DATEADD kullan:
-   Örnek: OrderDate >= DATEADD(DAY, -60, GETDATE())
-
-4. Çıktın sadece SQL olsun. Başka hiçbir ekstra karakter olmasın.
-
+                ÖRNEKLER (Few-Shot Learning):
                 
-                Şema: {schema}
+                Kullanıcı: 'Toplam kaç çeşit ürünümüz var?'
+                AI: SELECT COUNT(*) FROM Products
+
+                Kullanıcı: 'Depoda toplam kaç adet (miktar) ürün var?'
+                AI: SELECT SUM(StockAmount) FROM Products
+
+                Kullanıcı: 'Hangi ürünü hangi tedarikçiden alıyoruz?'
+                AI: SELECT p.Name, v.VendorName FROM Products p JOIN Vendors v ON p.VendorId = v.Id
+
+                Kullanıcı: 'Yeni bir tedarikçi ekle: Adı Global Lojistik, Şehir İstanbul'
+                AI: INSERT INTO Vendors (VendorName, City) VALUES ('Global Lojistik', 'İstanbul')
+
+                Kullanıcı: 'Mouse fiyatlarını %10 arttır'
+                AI: UPDATE Products SET Price = Price * 1.10 WHERE Name LIKE '%Mouse%'
             ";
 
             var requestBody = new
             {
-                model = "gpt-4o-mini",
+                model = "gpt-4o-mini", // Veya gpt-3.5-turbo
                 messages = new[]
                 {
                     new { role = "system", content = systemMessage },
                     new { role = "user", content = userPrompt }
                 },
-                temperature = 0.1, // Mantıklı ve tutarlı cevap için düşük sıcaklık
+                temperature = 0.1, // Tutarlı olması için düşük sıcaklık
                 max_tokens = 500
             };
 
             var requestJson = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
-
-           var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/chat/completions");
-
+            
+            // OpenAI API Çağrısı
+            var request = new HttpRequestMessage(HttpMethod.Post, "[https://api.openai.com/v1/chat/completions](https://api.openai.com/v1/chat/completions)");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _apiKey);
-
             request.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.SendAsync(request);
 
-
             if (!response.IsSuccessStatusCode)
             {
-                // API'dan hata gelirse (401 Unauthorized, 400 Bad Request vb.), hatayı döndür
                 var errorContent = await response.Content.ReadAsStringAsync();
-                return $"-- HATA: API Başarısız. Durum Kodu: {response.StatusCode}. Hata içeriği: {errorContent}";
+                // Hata durumunda SQL yorum satırı olarak hata döndür ki frontend patlamasın
+                return $"-- API HATASI: {response.StatusCode} - {errorContent}";
             }
 
             var responseString = await response.Content.ReadAsStringAsync();
             
-            // JSON'dan sadece AI cevabını alıp temizliyoruz
             using (JsonDocument doc = JsonDocument.Parse(responseString))
             {
                 var sqlText = doc.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString();
-                // AI'ın eklediği kod bloklarını temizle
-                return sqlText?.Replace("```sql", "").Replace("```", "").Trim() ?? "SELECT 1;";
+                
+                // Temizlik: AI bazen ```sql ... ``` formatında atar, onları siliyoruz.
+                return sqlText?
+                    .Replace("```sql", "")
+                    .Replace("```", "")
+                    .Trim() ?? "SELECT 1"; 
             }
         }
     }
