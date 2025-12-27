@@ -20,7 +20,7 @@ namespace AiErp.API.Services
 
         public async Task<string> GenerateSqlFromText(string userPrompt)
         {
-            // GÜNCELLEME 1: Şemayı senin son veritabanı yapına göre (Id kullanan yapı) düzelttim.
+        
             var schema = @"
                 -- TABLOLAR VE KOLONLAR
                 Products (Id, Name, StockAmount, Price, VendorId)
@@ -36,7 +36,6 @@ namespace AiErp.API.Services
                 GoodsReceipts.OrderId -> Orders.Id
             ";
 
-            // GÜNCELLEME 2: Hocanın istediği zeka kurallarını ve örnekleri ekledim.
             var systemMessage = $@"
                 Sen uzman bir MSSQL (T-SQL) veritabanı asistanısın.
                 Görevin: Kullanıcının doğal dil sorularını aşağıdaki şemaya uygun T-SQL sorgularına çevirmek.

@@ -431,6 +431,35 @@
   gap: 16px;
 }
 
+.chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #1E293B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 2px;
+}
+
+.chat-avatar svg {
+  width: 100%;
+  height: 100%;
+}
+
+.chat-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
 .chat-widget-body {
   background: #ffffff;
   border-bottom-left-radius: 24px;

@@ -24,7 +24,7 @@ export const routes: Routes = [
         component: PurchasingModuleComponent,
         canActivate: [authGuard],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'warehouse' },
+          { path: '', pathMatch: 'full', redirectTo: 'data/products' },
           {
             path: 'transactions',
             component: PurchasingPlaceholderComponent,
