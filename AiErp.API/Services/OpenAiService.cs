@@ -40,27 +40,30 @@ namespace AiErp.API.Services
             ";
 
             var systemMessage = $@"
-                Sen uzman bir MSSQL veritabanı mühendisisin.
-                Görevin: Kullanıcı sorusunu T-SQL sorgusuna çevirmek.
+                Sen uzman bir T-SQL veritabanı mühendisisin.
                 ŞEMA: {schema}
-                VERİTABANI ŞEMASI VE KURALLAR:
-                1. Sadece SQL kodu döndür. Markdown yok, yorum yok.
-                2. Sadece SELECT, INSERT, UPDATE, DELETE kullan.
-                3. Tarih analizlerinde 'yyyy-MM' formatında gruplama yap ki trend analizi yapabilelim.
-                4. Tarih sorulursa 'Orders' tablosundaki 'OrderDate' sütununu kullan.
-                5. En çok satılan ürün gibi sorgularda şu 3 tabloyu JOIN yap:
-                  FROM PurchaseOrderDetails d
-                  JOIN Orders o ON d.OrderId = o.Id
-                  JOIN Products p ON d.ProductId = p.Id
 
-                MEVSİM FİLTRELERİ:
-                - Yaz (Summer): MONTH(o.OrderDate) IN (6, 7, 8)
-                - Kış (Winter): MONTH(o.OrderDate) IN (12, 1, 2)
-                - İlkbahar: 3, 4, 5
-                - Sonbahar: 9, 10, 11
- 
+                ---------- KESİN KURALLAR (HATA YAPMA) ----------
+
+                SENARYO A: GENEL SATIŞ / CİRO / KASA (Sales)
+                - Soru: 'Ciro ne kadar?', 'Toplam satış', 'Kasa durumu'
+                - KURAL: SADECE 'Orders' tablosunu kullan.
+                - FORMÜL: SUM(TotalAmount)
+                - YASAK: Asla detay tablolarını JOIN yapma (Veri çoğalır!).
+
+                SENARYO B: TEDARİKÇİ / SATINALMA ANALİZİ (Procurement)
+                - Soru: 'En çok ödeme yapılan tedarikçi', 'Hangi tedarikçiden ne aldık', 'Maliyet analizi'
+                - KURAL: Burada JOIN yapman ŞARTTIR.
+                - YOL: Vendors -> Products -> PurchaseOrderDetails
+                - FORMÜL (Çok Önemli): SUM(PurchaseOrderDetails.Quantity * PurchaseOrderDetails.UnitPrice) 
+                - YASAK: Tedarikçi analizinde 'Orders.TotalAmount' sütununu kullanma! Satır bazlı hesapla.
+
+                SENARYO C: TARİH FİLTRELERİ
+                - Eğer kullanıcı tarih belirtmediyse (örn: 'son 6 ay' demediyse), TÜM ZAMANLARI getir. 
+                - Kendi kafandan 'WHERE Year(OrderDate) = 2025' gibi filtreler ASLA EKLEME.
+
                 ÇIKTI FORMATI:
-                Sadece SQL kodunu döndür. Markdown (```sql) veya açıklama metni EKLEME.
+                - Sadece SQL kodu döndür. Markdown yok.
             ";
 
             // SDK Kullanımı (Daha kararlı ve temiz)
@@ -88,9 +91,13 @@ namespace AiErp.API.Services
                 return "Analiz edilecek veri bulunamadı.";
 
             var systemMessage = @"
-            Sen kıdemli bir ERP İş Analisti, Finansal Analist, Veri Bilimcisi, Sınıflandırma Uzmanısın.
+            Sen kıdemli bir ERP İş Analisti, Finansal Analist, Veri Bilimcisi, Sınıflandırma ve Satınalma Uzmanısın.
             Gelen soruyu analiz et ve eğer kullanıcı sohbet etmek istiyorsa sadece tek kelime cevap ver.
             Sana kullanıcı sorusu ve veritabanından gelen ham veri (JSON) verilecek.
+
+            AMACIN:
+            Bu verileri yöneticiye sunulacak kısa, net ve profesyonel bir rapora dönüştürmek.
+            ASLA 'SQL' veya 'Chat' gibi tek kelimelik cevaplar verme. Doğrudan analize başla.
 
             GÖREVLERİN:
             1. Veriyi yorumla: Rakamlar ne anlatıyor? Artış mı var, düşüş mü?
@@ -109,13 +116,23 @@ namespace AiErp.API.Services
             4. Sıralamayı 'SUM(d.Quantity) DESC' (çoktan aza) şeklinde yap.
             5. Mevsim sorulursa şu ayları filtrele:
            - Yaz Ayları: 6, 7, 8 (Haziran, Temmuz, Ağustos) 
-           - Kış Ayları: 12, 1, 2
-           - İlkbahar: 3, 4, 5
-           - Sonbahar: 9, 10, 11
-           6. Eğer kullanıcı veritabanından veri istiyorsa (satışlar, stok, ciro, kaç adet, listele vb.) -> 'SQL' yaz.
-           7. Eğer kullanıcı selam veriyorsa, yeteneklerini soruyorsa veya veritabanı dışı sohbet ediyorsa -> 'CHAT' yaz.
+           - Kış Ayları: 12, 1, 2 (Aralık, Ocak, Şubat)
+           - İlkbahar: 3, 4, 5 (Mart, Nisan, Mayıs)
+           - Sonbahar: 9, 10, 11 (Eylül, Ekim, Kasım)
+           6. GÖREVİN ROUTING DEĞİL ANALİZDİR: Sana gelen JSON verisi, SQL sorgusuyla zaten çekilmiştir. Sen bu veriyi yorumlamakla yükümlüsün. ASLA 'SQL' yazma. 
+           7. ÇIKTI GARANTİSİ: Kullanıcı ne sorarsa sorsun, elindeki JSON verisine dayanarak mutlaka aşağıda belirtilen HTML Tablo formatında bir analiz üret.
            8. 'Ekleme yapabilir misin', 'Silme yapabilir misin' gibi sorular yetenek sorusudur -> 'CHAT' yaz.
-
+           ÇOK KRİTİK KURALLAR (BUNLARA UYMAZSAN SİSTEM ÇÖKER):
+    
+    1. CİRO, TOPLAM TUTAR veya KAZANÇ SORULURSA:
+       - SADECE ve SADECE 'Orders' tablosunu kullan.
+       - Sütun: SUM(TotalAmount)
+       - ASLA 'PurchaseOrderDetails' tablosunu JOIN YAPMA!
+       - SEBEP: Bir siparişin içinde birden fazla ürün detayı vardır. Eğer detay tablosunu birleştirirsen, sipariş tutarını ürün sayısı kadar mükerrer toplarsın ve sonuç yanlış çıkar.
+    
+    2. EN ÇOK SATILAN ÜRÜN SORULURSA:
+       - İşte o zaman PurchaseOrderDetails, Orders ve Products tablolarını JOIN yap.
+       - Çünkü ürün bazlı adet bilgisi detay tablosundadır.
             HESAPLAMA KURALLARI (BUNLARI UYGULA):
             1. Sadece son aya bakma! Son 3-4 ayın değişim oranını (yüzde kaç artmış/azalmış) kafanda hesapla.
             2. ASLA son ayın verisini aynen 'Gelecek ay tahmini' olarak yazma.

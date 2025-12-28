@@ -30,20 +30,24 @@ namespace AiErp.API.Controllers
                     return BadRequest(new { message = "Soru boş olamaz." });
 
                 // 2. ADIM: AI SQL ÜRETSİN
-                // (Ekleme özelliğini iptal ettiğimiz için burası sadece SELECT üretecek)
+                // (Senin OpenAiService.cs içindeki GenerateSqlFromText metodunu çağırır)
                 string sqlQuery = await _openAiService.GenerateSqlFromText(request.Question);
 
-                if (string.IsNullOrEmpty(sqlQuery) || sqlQuery.StartsWith("HATA"))
-                    return BadRequest(new { message = "SQL üretilemedi veya yetkisiz işlem." });
+                // Konsola yazalım ki SQL'i görelim
+                Console.WriteLine("AI SQL: " + sqlQuery);
 
-                // 3. ADIM: SQL'İ ÇALIŞTIR (Veritabanından veriyi çek)
-                // SqlExecutorService'in görseldeki hali (sadece ExecuteQueryAsync) buna uygun.
+                if (string.IsNullOrEmpty(sqlQuery) || sqlQuery.StartsWith("HATA"))
+                    return BadRequest(new { message = "SQL üretilemedi." });
+
+                // 3. ADIM: SQL'İ ÇALIŞTIR (Veriyi Çek)
                 var rawData = await _sqlExecutorService.ExecuteQueryAsync(sqlQuery);
 
-                // 4. ADIM: VERİYİ JSON'A ÇEVİR
+                // 4. ADIM: VERİYİ JSON'A ÇEVİR (Analiz için hazırlık)
                 string jsonData = JsonSerializer.Serialize(rawData);
-                
-                // 5. ADIM: ANALİZ (Kahin Modu)
+
+                // -----------------------------------------------------------
+                // 5. ADIM: İŞTE BURASI EKSİK OLABİLİR! (ANALİZİ ÇAĞIRMA)
+                // -----------------------------------------------------------
                 string aiAnalysis = await _openAiService.AnalyzeResultSet(request.Question, jsonData);
 
                 // 6. ADIM: HEPSİNİ GÖNDER
@@ -52,7 +56,7 @@ namespace AiErp.API.Controllers
                     originalQuestion = request.Question,
                     generatedSql = sqlQuery,
                     data = rawData,
-                    analysis = aiAnalysis
+                    analysis = aiAnalysis // Frontend'in beklediği HTML analiz buraya gider
                 });
             }
             catch (Exception ex)
@@ -62,11 +66,8 @@ namespace AiErp.API.Controllers
         }
     }
 
-    // --- SORUNU ÇÖZEN KISIM BURASI ---
     public class UserQuery
     {
-        // = string.Empty; diyerek "bu asla null olmayacak, başlangıçta boş metin olsun" diyoruz.
-        // Böylece o sarı uyarı çizgisi ve hata kayboluyor.
         public string Question { get; set; } = string.Empty;
     }
 }
