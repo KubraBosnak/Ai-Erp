@@ -21,14 +21,14 @@
                       @for (row of message.jsonData; track $index) {
                         <tr>
                           @for (key of getJsonKeys(row); track key) {
-                            <td>{{ formatValue(row[key]) }}</td>
+                            <td>{{ formatValue(key, row[key]) }}</td>
                           }
                         </tr>
                       }
                     } @else {
                       <tr>
                         @for (key of getJsonKeys(message.jsonData); track key) {
-                          <td>{{ formatValue(message.jsonData[key]) }}</td>
+                          <td>{{ formatValue(key, message.jsonData[key]) }}</td>
                         }
                       </tr>
                     }
@@ -36,7 +36,7 @@
                 </table>
               </div>
             } @else {
-              <div class="message-content">{{ message.content }}</div>
+              <div class="..." [innerHTML]="message.content"></div>
             }
             <div class="message-time">{{ formatTime(message.timestamp) }}</div>
           </div>

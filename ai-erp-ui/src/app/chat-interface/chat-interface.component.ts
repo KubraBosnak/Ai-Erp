@@ -33,7 +33,7 @@ export class ChatInterfaceComponent {
     }
   ]);
 
-  // Bu method, global Array.isArray komutunu template'e tanıtmak için var.
+  // Template'de Array kontrolü için
   isArray(obj: any): boolean {
     return Array.isArray(obj);
   }
@@ -42,8 +42,9 @@ export class ChatInterfaceComponent {
     const message = this.newMessage().trim();
     if (!message) return;
 
+    // 1. Kullanıcı mesajını ekle
     const newUserMessage: Message = {
-      id: this.messages().length + 1,
+      id: Date.now(), // Benzersiz ID için timestamp kullandım
       content: message,
       sender: 'user',
       timestamp: new Date()
@@ -52,56 +53,52 @@ export class ChatInterfaceComponent {
     this.messages.update(msgs => [...msgs, newUserMessage]);
     this.newMessage.set('');
     
-    // API'ye istek gönder
+    // 2. API'ye istek gönder
     this.chatService.sendMessage(message).subscribe({
-      next: (response) => {
-        const botResponse = response.data || response;
-        
-        // JSON kontrolü
-        let parsedJson: any = null;
-        let isJson = false;
-        let responseString = '';
-        
-        // Eğer zaten bir obje/array ise
-        if (typeof botResponse === 'object' && botResponse !== null) {
-          parsedJson = botResponse;
-          isJson = true;
-          responseString = JSON.stringify(botResponse);
-        } else if (typeof botResponse === 'string') {
-          // String ise JSON olup olmadığını kontrol et
-          responseString = botResponse;
-          try {
-            parsedJson = JSON.parse(botResponse);
-            // Eğer parse edilen değer bir obje veya array ise JSON olarak kabul et
-            if (typeof parsedJson === 'object' && parsedJson !== null) {
-              isJson = true;
-            }
-          } catch (e) {
-            // JSON değil, normal metin
-            isJson = false;
-          }
-        } else {
-          responseString = String(botResponse);
-          isJson = false;
+      next: (response: any) => {
+        // Backend'den dönen yapı: { data: [...], analysis: "...", generatedSql: "..." }
+
+        // A) Önce Tablo Verisini Kontrol Et ve Ekle
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          const tableMessage: Message = {
+            id: Date.now() + 1,
+            content: 'Veri Sonuçları',
+            sender: 'bot',
+            timestamp: new Date(),
+            isJson: true,
+            jsonData: response.data
+          };
+          this.messages.update(msgs => [...msgs, tableMessage]);
         }
-        
-        const botMessage: Message = {
-          id: this.messages().length + 1,
-          content: isJson ? 'JSON veri' : responseString,
-          sender: 'bot',
-          timestamp: new Date(),
-          isJson: isJson,
-          jsonData: isJson ? parsedJson : undefined
-        };
-        
-        this.messages.update(msgs => [...msgs, botMessage]);
+
+        // B) Hemen Ardından Analiz/Yorum Mesajını Ekle
+        if (response.analysis) {
+          const analysisMessage: Message = {
+            id: Date.now() + 2,
+            content: response.analysis, // HTML içerikli metin
+            sender: 'bot',
+            timestamp: new Date(),
+            isJson: false // Bu bir metin (HTML) mesajıdır
+          };
+          this.messages.update(msgs => [...msgs, analysisMessage]);
+        }
+
+        // C) Eğer ne veri ne de analiz varsa (Hata veya boş cevap durumu)
+        if (!response.data && !response.analysis) {
+             const defaultMessage: Message = {
+                id: Date.now() + 3,
+                content: response.message || 'Bir sonuç bulunamadı.',
+                sender: 'bot',
+                timestamp: new Date()
+             };
+             this.messages.update(msgs => [...msgs, defaultMessage]);
+        }
       },
       error: (error) => {
         console.error('Chat API hatası:', error);
         
-        // Hata durumunda kullanıcıya bilgi ver
         const errorMessage: Message = {
-          id: this.messages().length + 1,
+          id: Date.now(),
           content: 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
           sender: 'bot',
           timestamp: new Date()
@@ -111,6 +108,8 @@ export class ChatInterfaceComponent {
       }
     });
   }
+
+  // --- Yardımcı Format Fonksiyonları ---
 
   formatTime(date: Date): string {
     return new Date(date).toLocaleTimeString('tr-TR', { 
@@ -145,20 +144,45 @@ export class ChatInterfaceComponent {
   }
 
   formatKey(key: string): string {
-    // Key'leri daha okunaklı hale getir (örn: stockAmount -> Stock Amount)
     return key
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .trim();
   }
-
-  formatValue(value: any): string {
+// Eski formatValue fonksiyonunu sil, bunu yapıştır:
+  formatValue(key: string, value: any): string {
     if (value === null || value === undefined) {
       return '-';
     }
+
+    // Eğer değer bir sayıysa
+    if (typeof value === 'number') {
+      // 1. Türkçe formatına çevir (Noktalı binlik ayracı)
+      const formattedNumber = value.toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+
+      // 2. Sütun adına bak, para birimi içeriyorsa TL ekle
+      const lowerKey = key.toLowerCase();
+      if (
+        lowerKey.includes('amount') || 
+        lowerKey.includes('price') || 
+        lowerKey.includes('total') || 
+        lowerKey.includes('revenue') || 
+        lowerKey.includes('ciro') || 
+        lowerKey.includes('tutar') || 
+        lowerKey.includes('fiyat')
+      ) {
+        return `${formattedNumber} TL`;
+      }
+      
+      return formattedNumber;
+    }
+
+    // Nesne ise JSON string yap
     if (typeof value === 'object') {
       return JSON.stringify(value);
     }
+
+    // Düz yazıysa olduğu gibi döndür
     return String(value);
   }
 }

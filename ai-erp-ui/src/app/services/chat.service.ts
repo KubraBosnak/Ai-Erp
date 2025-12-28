@@ -9,14 +9,14 @@ export class ChatService {
   private readonly http = inject(HttpClient);
   private readonly apiUrl = 'http://localhost:5093/api/AiQuery/query';
 
-  sendMessage(userMessage: string): Observable<any> {
+ sendMessage(userMessage: string): Observable<any> {
     const headers = new HttpHeaders({
       'Content-Type': 'application/json'
     });
 
-    const body = JSON.stringify(userMessage);
+    // Backend'deki 'Question' ile birebir aynı olmalı
+    const body = { Question: userMessage }; 
 
     return this.http.post(this.apiUrl, body, { headers });
   }
 }
-

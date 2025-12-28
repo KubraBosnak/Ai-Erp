@@ -454,3 +454,38 @@
   }
 }
 
+/* ========================================= */
+/* AI ANALİZ RAPORU İÇİN ÖZEL STİLLER       */
+/* ========================================= */
+
+/* innerHTML ile gelen tabloyu yakalamak için ::ng-deep şart */
+::ng-deep .message-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  background-color: transparent;
+  font-size: 14px;
+}
+
+/* Tüm hücreler için ayar */
+::ng-deep .message-content td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e5e5;
+  vertical-align: top;  /* KRİTİK: Yazıları yukarı yaslar (ortada kalmaz) */
+  line-height: 1.5;
+}
+
+/* Sadece İLK Sütun (Başlıklar: Durum Analizi vb.) */
+::ng-deep .message-content td:first-child {
+  width: 140px;          /* Genişlik sabit olsun */
+  min-width: 140px;      /* Asla daralmasın */
+  font-weight: 600;      /* Kalın yazı */
+  color: #2c3e50;        /* Koyu renk */
+  white-space: nowrap;   /* KRİTİK: Asla alt satıra inmesin, tek satır kalsın */
+  padding-right: 15px;
+}
+
+/* Son satırın çizgisini kaldıralım */
+::ng-deep .message-content tr:last-child td {
+  border-bottom: none;
+}
